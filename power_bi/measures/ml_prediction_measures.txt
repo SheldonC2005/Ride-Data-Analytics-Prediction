@@ -1,0 +1,365 @@
+// ================================================================================
+// RAPIDO ML PREDICTION DAX MEASURES
+// Advanced Machine Learning Integration for Power BI Dashboard
+// ================================================================================
+
+// ==================== ML DATA TABLES ====================
+// These measures assume you've imported the following data tables:
+// 1. ml_predictions (from ml_predictions.xlsx) - Contains batch ML predictions
+// 2. geospatial_features (from geospatial exports) - Location-based features
+// 3. weather_forecasts (from weather API) - Weather prediction data
+
+// ==================== DEMAND FORECASTING MEASURES ====================
+
+ML Predicted Demand = 
+VAR CurrentHour = HOUR(NOW())
+VAR CurrentDayOfWeek = WEEKDAY(TODAY(), 2)
+VAR CurrentMonth = MONTH(TODAY())
+VAR IsWeekend = IF(WEEKDAY(TODAY(), 2) >= 6, 1, 0)
+VAR CurrentWeather = 
+    CALCULATE(
+        FIRSTNONBLANK(weather_forecasts[weather_condition], 1),
+        weather_forecasts[forecast_date] = TODAY()
+    )
+RETURN
+    CALCULATE(
+        AVERAGE(ml_predictions[predicted_demand]),
+        ml_predictions[hour] = CurrentHour &&
+        ml_predictions[day_of_week] = CurrentDayOfWeek &&
+        ml_predictions[is_weekend] = IsWeekend &&
+        ml_predictions[weather_condition] = CurrentWeather
+    )
+
+ML Demand Confidence = 
+CALCULATE(
+    AVERAGE(ml_predictions[demand_confidence]),
+    FILTER(
+        ml_predictions,
+        ml_predictions[hour] = HOUR(NOW()) &&
+        ml_predictions[day_of_week] = WEEKDAY(TODAY(), 2)
+    )
+)
+
+Peak Hour Demand Prediction = 
+CALCULATE(
+    MAX(ml_predictions[predicted_demand]),
+    ml_predictions[hour] IN {17, 18, 19, 20}
+)
+
+// ==================== DYNAMIC PRICING MEASURES ====================
+
+ML Predicted Fare = 
+VAR SelectedDistance = 
+    IF(
+        ISBLANK(SELECTEDVALUE(FactRides[distance_km])),
+        5.0, // Default 5km
+        SELECTEDVALUE(FactRides[distance_km])
+    )
+VAR SelectedVehicle = 
+    IF(
+        ISBLANK(SELECTEDVALUE(DimVehicle[vehicle_type])),
+        "auto",
+        SELECTEDVALUE(DimVehicle[vehicle_type])
+    )
+VAR CurrentWeather = 
+    CALCULATE(
+        FIRSTNONBLANK(weather_forecasts[weather_condition], 1),
+        weather_forecasts[forecast_date] = TODAY()
+    )
+RETURN
+    CALCULATE(
+        AVERAGE(ml_predictions[predicted_fare]),
+        ml_predictions[distance_km] = SelectedDistance &&
+        ml_predictions[vehicle_type] = SelectedVehicle &&
+        ml_predictions[weather_condition] = CurrentWeather
+    )
+
+Weather Premium ML = 
+VAR ClearWeatherFare = 
+    CALCULATE(
+        AVERAGE(ml_predictions[predicted_fare]),
+        ml_predictions[weather_condition] = "Clear"
+    )
+VAR CurrentWeatherFare = 
+    CALCULATE(
+        AVERAGE(ml_predictions[predicted_fare]),
+        ml_predictions[weather_condition] = 
+            CALCULATE(
+                FIRSTNONBLANK(weather_forecasts[weather_condition], 1),
+                weather_forecasts[forecast_date] = TODAY()
+            )
+    )
+RETURN
+    IF(
+        ClearWeatherFare > 0,
+        (CurrentWeatherFare / ClearWeatherFare - 1) * 100,
+        0
+    )
+
+ML Pricing Confidence = 
+CALCULATE(
+    AVERAGE(ml_predictions[pricing_confidence]),
+    ml_predictions[prediction_type] = "pricing"
+)
+
+// ==================== ROUTE OPTIMIZATION MEASURES ====================
+
+Recommended Routes Count = 
+CALCULATE(
+    COUNTROWS(ml_predictions),
+    ml_predictions[prediction_type] = "route_recommendation" &&
+    ml_predictions[recommendation_score] >= 0.7
+)
+
+Best Route Score = 
+CALCULATE(
+    MAX(ml_predictions[recommendation_score]),
+    ml_predictions[prediction_type] = "route_recommendation"
+)
+
+Route Efficiency Index = 
+VAR OptimalDistance = 
+    CALCULATE(
+        MIN(geospatial_features[estimated_distance_km]),
+        geospatial_features[route_complexity] = "simple"
+    )
+VAR AverageDistance = AVERAGE(FactRides[distance_km])
+RETURN
+    IF(
+        AverageDistance > 0,
+        OptimalDistance / AverageDistance,
+        0
+    )
+
+// ==================== WEATHER IMPACT MEASURES ====================
+
+Weather Impact Score = 
+CALCULATE(
+    AVERAGE(ml_predictions[weather_impact_score]),
+    ml_predictions[prediction_type] = "weather_impact"
+)
+
+Rain Revenue Impact = 
+VAR RainRevenue = 
+    CALCULATE(
+        SUM(FactRides[fare_amount]),
+        DimWeather[weather_condition] = "Rain"
+    )
+VAR ClearRevenue = 
+    CALCULATE(
+        SUM(FactRides[fare_amount]),
+        DimWeather[weather_condition] = "Clear"
+    )
+VAR RainDays = 
+    CALCULATE(
+        DISTINCTCOUNT(FactRides[ride_date]),
+        DimWeather[weather_condition] = "Rain"
+    )
+VAR ClearDays = 
+    CALCULATE(
+        DISTINCTCOUNT(FactRides[ride_date]),
+        DimWeather[weather_condition] = "Clear"
+    )
+RETURN
+    IF(
+        ClearRevenue > 0 && ClearDays > 0,
+        ((RainRevenue / RainDays) / (ClearRevenue / ClearDays) - 1) * 100,
+        0
+    )
+
+// ==================== MODEL PERFORMANCE MEASURES ====================
+
+ML Model Accuracy = 
+CALCULATE(
+    AVERAGE(ml_predictions[model_accuracy]),
+    ml_predictions[model_type] = "ensemble"
+)
+
+Demand Model R2 = 
+CALCULATE(
+    MAX(ml_predictions[r2_score]),
+    ml_predictions[prediction_type] = "demand_forecasting"
+)
+
+Pricing Model MAE = 
+CALCULATE(
+    MIN(ml_predictions[mae_score]),
+    ml_predictions[prediction_type] = "pricing"
+)
+
+// ==================== GEOSPATIAL INTELLIGENCE MEASURES ====================
+
+Route Complexity Average = 
+CALCULATE(
+    AVERAGE(geospatial_features[route_complexity_score]),
+    geospatial_features[route_complexity_score] > 0
+)
+
+Distance Accuracy = 
+VAR ActualDistance = AVERAGE(FactRides[distance_km])
+VAR EstimatedDistance = AVERAGE(geospatial_features[estimated_distance_km])
+RETURN
+    IF(
+        ActualDistance > 0,
+        1 - ABS(ActualDistance - EstimatedDistance) / ActualDistance,
+        0
+    )
+
+High Traffic Routes = 
+CALCULATE(
+    COUNTROWS(geospatial_features),
+    geospatial_features[traffic_density_category] = "high"
+)
+
+// ==================== REAL-TIME PREDICTIONS ====================
+
+Current Hour Prediction = 
+VAR CurrentHour = HOUR(NOW())
+VAR CurrentWeather = 
+    CALCULATE(
+        FIRSTNONBLANK(weather_forecasts[weather_condition], 1),
+        weather_forecasts[forecast_date] = TODAY()
+    )
+RETURN
+    CALCULATE(
+        AVERAGE(ml_predictions[predicted_demand]),
+        ml_predictions[hour] = CurrentHour &&
+        ml_predictions[weather_condition] = CurrentWeather
+    )
+
+Next Hour Prediction = 
+VAR NextHour = IF(HOUR(NOW()) = 23, 0, HOUR(NOW()) + 1)
+VAR CurrentWeather = 
+    CALCULATE(
+        FIRSTNONBLANK(weather_forecasts[weather_condition], 1),
+        weather_forecasts[forecast_date] = TODAY()
+    )
+RETURN
+    CALCULATE(
+        AVERAGE(ml_predictions[predicted_demand]),
+        ml_predictions[hour] = NextHour &&
+        ml_predictions[weather_condition] = CurrentWeather
+    )
+
+// ==================== BUSINESS INTELLIGENCE ENHANCED ====================
+
+ML Enhanced Revenue = 
+VAR BaseFare = AVERAGE(FactRides[fare_amount])
+VAR PredictedFare = [ML Predicted Fare]
+VAR TotalRides = COUNT(FactRides[ride_id])
+RETURN
+    PredictedFare * TotalRides
+
+Revenue Optimization Potential = 
+VAR CurrentRevenue = SUM(FactRides[fare_amount])
+VAR OptimizedRevenue = [ML Enhanced Revenue]
+RETURN
+    IF(
+        CurrentRevenue > 0,
+        (OptimizedRevenue - CurrentRevenue) / CurrentRevenue * 100,
+        0
+    )
+
+Demand Supply Gap = 
+VAR PredictedDemand = [ML Predicted Demand]
+VAR AvailableVehicles = DISTINCTCOUNT(FactRides[vehicle_id])
+RETURN
+    PredictedDemand - AvailableVehicles
+
+// ==================== WEATHER FORECAST INTEGRATION ====================
+
+Tomorrow Weather Demand = 
+VAR TomorrowWeather = 
+    CALCULATE(
+        FIRSTNONBLANK(weather_forecasts[weather_condition], 1),
+        weather_forecasts[forecast_date] = TODAY() + 1
+    )
+VAR CurrentHour = HOUR(NOW())
+RETURN
+    CALCULATE(
+        AVERAGE(ml_predictions[predicted_demand]),
+        ml_predictions[weather_condition] = TomorrowWeather &&
+        ml_predictions[hour] = CurrentHour
+    )
+
+Weather Change Impact = 
+VAR TodayDemand = [Current Hour Prediction]
+VAR TomorrowDemand = [Tomorrow Weather Demand]
+RETURN
+    IF(
+        TodayDemand > 0,
+        (TomorrowDemand - TodayDemand) / TodayDemand * 100,
+        0
+    )
+
+// ==================== KPI INDICATORS ====================
+
+ML Prediction Status = 
+VAR LastPrediction = 
+    CALCULATE(
+        MAX(ml_predictions[prediction_timestamp]),
+        ml_predictions[prediction_timestamp] <= NOW()
+    )
+VAR HoursSincePrediction = 
+    DATEDIFF(LastPrediction, NOW(), HOUR)
+RETURN
+    SWITCH(
+        TRUE(),
+        HoursSincePrediction <= 1, "🟢 Live",
+        HoursSincePrediction <= 6, "🟡 Recent",
+        HoursSincePrediction <= 24, "🟠 Stale",
+        "🔴 Outdated"
+    )
+
+Model Performance Indicator = 
+VAR AverageAccuracy = [ML Model Accuracy]
+RETURN
+    SWITCH(
+        TRUE(),
+        AverageAccuracy >= 0.9, "🟢 Excellent",
+        AverageAccuracy >= 0.8, "🟡 Good",
+        AverageAccuracy >= 0.7, "🟠 Fair",
+        "🔴 Poor"
+    )
+
+// ==================== USAGE INSTRUCTIONS ====================
+
+/*
+HOW TO USE THESE MEASURES:
+
+1. IMPORT ML DATA TABLES:
+   - Run the Python ML scripts first to generate prediction files
+   - Import ml_predictions.xlsx into Power BI
+   - Import geospatial_features.xlsx if available
+   - Import weather_forecasts.xlsx if available
+
+2. CREATE RELATIONSHIPS:
+   - Connect ml_predictions to FactRides via hour, date, weather_condition
+   - Connect geospatial_features to FactRides via from_location, to_location
+   - Connect weather_forecasts to DimWeather via weather_condition
+
+3. DASHBOARD USAGE:
+   - Add "ML Prediction Status" to your dashboard header
+   - Use "Current Hour Prediction" for real-time demand monitoring
+   - Add "Weather Premium ML" to pricing analysis pages
+   - Include "Model Performance Indicator" for ML model health
+
+4. FILTERS:
+   - These measures work with existing slicers (date, vehicle type, etc.)
+   - Add weather condition slicer for weather-based analysis
+   - Use time slicers for hourly prediction analysis
+
+5. REFRESH SCHEDULE:
+   - Set up automatic refresh to get latest ML predictions
+   - Refresh weather data daily for accurate forecasts
+   - Monitor model performance indicators regularly
+
+6. TROUBLESHOOTING:
+   - If measures show blank, check if ML prediction tables are loaded
+   - Verify relationships between ML tables and fact tables
+   - Ensure date formats match between tables
+*/
+
+// ================================================================================
+// END OF ML PREDICTION MEASURES
+// ================================================================================

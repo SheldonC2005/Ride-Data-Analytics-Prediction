@@ -10,9 +10,27 @@ seaborn>=0.12.0
 plotly>=5.15.0
 plotly-express>=0.4.1
 
-# Statistical Analysis
+# Statistical Analysis & Machine Learning
 scikit-learn>=1.3.0
+xgboost>=1.7.0
+lightgbm>=4.0.0
 statsmodels>=0.14.0
+
+# Geospatial Analysis
+geopy>=2.3.0
+folium>=0.14.0
+
+# Weather API Integration
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Model Persistence & Monitoring
+joblib>=1.3.0
+pickle-mixin>=1.0.2
+
+# Advanced ML Features
+imbalanced-learn>=0.11.0
+optuna>=3.3.0
 
 # Jupyter Notebook Support
 jupyter>=1.0.0
@@ -30,6 +48,10 @@ great-expectations>=0.17.0
 # Time Series Analysis
 holidays>=0.30
 datetime
+
+# Web Server for ML Price Predictor
+Flask>=2.3.0
+Flask-CORS>=4.0.0
 
 # Web Scraping (if needed for weather data)
 requests>=2.31.0

@@ -1,0 +1,20 @@
+{
+  "key_metrics": {
+    "total_revenue": "\u20b913,170,756.08",
+    "total_trips": "88,938",
+    "avg_revenue_per_ride": "\u20b9148.09",
+    "vit_dependency": "59.9%"
+  },
+  "time_patterns": {
+    "peak_hour": "18",
+    "rush_hour_premium": "9.5%"
+  },
+  "weather_insights": {
+    "rain_premium": "38.3%",
+    "best_weather_for_revenue": "Clear"
+  },
+  "route_insights": {
+    "top_route": "Katpadi \u2192 Vellore Fort",
+    "most_frequent_route": "VIT University \u2192 Arcot Road"
+  }
+}

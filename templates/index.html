@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rapido Price Predictor - ML Powered</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 968px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 5px;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .btn-predict {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn-predict:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-predict:active {
+            transform: translateY(0);
+        }
+
+        .results-container {
+            display: none;
+        }
+
+        .results-container.show {
+            display: block;
+        }
+
+        .price-breakdown {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .price-breakdown h3 {
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .price-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .price-item:last-child {
+            border-bottom: none;
+            font-size: 1.3em;
+            font-weight: 700;
+            margin-top: 10px;
+            padding-top: 15px;
+            border-top: 2px solid rgba(255,255,255,0.4);
+        }
+
+        .prediction-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .prediction-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .prediction-card h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .prediction-card .value {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .prediction-card .label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .badge-high {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .badge-medium {
+            background: #ffa500;
+            color: white;
+        }
+
+        .badge-low {
+            background: #51cf66;
+            color: white;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+
+        .info-box h4 {
+            color: #2196F3;
+            margin-bottom: 10px;
+        }
+
+        .info-box ul {
+            margin-left: 20px;
+            color: #333;
+        }
+
+        .info-box li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚗 Rapido Price Predictor</h1>
+            <p>ML-Powered Ride Price Estimation with 4 Advanced Algorithms</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Input Form -->
+            <div class="card">
+                <h2>📝 Enter Ride Details</h2>
+                <form id="predictionForm">
+                    <div class="form-group">
+                        <label for="weather">Weather Condition</label>
+                        <select id="weather" name="weather" required>
+                            <option value="Clear">☀️ Clear</option>
+                            <option value="Clouds">☁️ Clouds</option>
+                            <option value="Rain">🌧️ Rain</option>
+                            <option value="Thunderstorm">⛈️ Thunderstorm</option>
+                            <option value="Drizzle">🌦️ Drizzle</option>
+                            <option value="Mist">🌫️ Mist</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hour">Hour of Day (0-23)</label>
+                        <input type="number" id="hour" name="hour" min="0" max="23" value="18" required>
+                        <small>Enter hour in 24-hour format (e.g., 18 for 6 PM)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="day">Day of Week</label>
+                        <select id="day" name="day" required>
+                            <option value="0">Monday</option>
+                            <option value="1">Tuesday</option>
+                            <option value="2">Wednesday</option>
+                            <option value="3">Thursday</option>
+                            <option value="4">Friday</option>
+                            <option value="5">Saturday</option>
+                            <option value="6">Sunday</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="distance">Distance (km)</label>
+                        <input type="number" id="distance" name="distance" min="0.1" step="0.1" value="5.0" required>
+                        <small>Enter distance in kilometers</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="vehicle">Vehicle Type</label>
+                        <select id="vehicle" name="vehicle" required>
+                            <option value="auto">🛺 Auto</option>
+                            <option value="bike">🏍️ Bike</option>
+                            <option value="cab">🚗 Cab</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="month">Month</label>
+                        <select id="month" name="month" required>
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6" selected>June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn-predict">🔮 Predict Price</button>
+                </form>
+
+                <div class="info-box">
+                    <h4>ℹ️ About This Tool</h4>
+                    <ul>
+                        <li>Uses 4 ML algorithm types</li>
+                        <li>Ensemble of 8 trained models</li>
+                        <li>Real-time predictions</li>
+                        <li>Detailed price breakdown</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Results Display -->
+            <div class="card">
+                <h2>📊 Prediction Results</h2>
+                
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing with ML models...</p>
+                </div>
+
+                <div class="error" id="error"></div>
+
+                <div class="results-container" id="results">
+                    <!-- Price Breakdown -->
+                    <div class="price-breakdown">
+                        <h3>💰 Price Breakdown</h3>
+                        <div class="price-item">
+                            <span>Base Fare:</span>
+                            <span id="baseFare">₹0.00</span>
+                        </div>
+                        <div class="price-item">
+                            <span>Weather Premium (<span id="weatherPct">0</span>%):</span>
+                            <span id="weatherPremium">₹0.00</span>
+                        </div>
+                        <div class="price-item">
+                            <span>Surge Multiplier (<span id="surgeMultiplier">1.0</span>x):</span>
+                            <span id="surgeAmount">₹0.00</span>
+                        </div>
+                        <div class="price-item">
+                            <span>Total Estimated Fare:</span>
+                            <span id="totalFare">₹0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- ML Predictions -->
+                    <div class="prediction-cards">
+                        <div class="prediction-card">
+                            <h4>📈 Demand Forecast</h4>
+                            <div class="value" id="demandValue">-</div>
+                            <div class="label">Expected trips/hour</div>
+                            <span class="badge" id="demandBadge">-</span>
+                        </div>
+
+                        <div class="prediction-card">
+                            <h4>🎯 Recommended Vehicle</h4>
+                            <div class="value" id="vehicleRec">-</div>
+                            <div class="label">Best option for conditions</div>
+                            <span class="badge badge-low" id="vehicleConfidence">-</span>
+                        </div>
+
+                        <div class="prediction-card">
+                            <h4>🌦️ Weather Impact</h4>
+                            <div class="value" id="weatherImpact">-</div>
+                            <div class="label">Impact multiplier</div>
+                            <span class="badge" id="weatherBadge">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('predictionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            // Show loading
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('results').classList.remove('show');
+            document.getElementById('error').classList.remove('show');
+
+            // Get form data
+            const formData = {
+                weather: document.getElementById('weather').value,
+                hour: parseInt(document.getElementById('hour').value),
+                day_of_week: parseInt(document.getElementById('day').value),
+                distance: parseFloat(document.getElementById('distance').value),
+                vehicle_type: document.getElementById('vehicle').value,
+                month: parseInt(document.getElementById('month').value)
+            };
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayResults(data.predictions);
+                } else {
+                    showError(data.error || 'Prediction failed');
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('show');
+            }
+        });
+
+        function displayResults(predictions) {
+            // Price breakdown
+            if (predictions.pricing && !predictions.pricing.error) {
+                const pricing = predictions.pricing;
+                document.getElementById('baseFare').textContent = '₹' + pricing.base_fare;
+                document.getElementById('weatherPct').textContent = pricing.weather_premium_pct;
+                document.getElementById('weatherPremium').textContent = '₹' + pricing.weather_premium;
+                document.getElementById('surgeMultiplier').textContent = pricing.surge_multiplier;
+                document.getElementById('surgeAmount').textContent = '₹' + pricing.surge_amount;
+                document.getElementById('totalFare').textContent = '₹' + pricing.total_fare;
+            }
+
+            // Demand forecast
+            if (predictions.demand && !predictions.demand.error) {
+                const demand = predictions.demand;
+                document.getElementById('demandValue').textContent = demand.value;
+                document.getElementById('demandBadge').textContent = demand.level + ' Demand';
+                document.getElementById('demandBadge').className = 'badge badge-' + demand.level.toLowerCase();
+            }
+
+            // Vehicle recommendation
+            if (predictions.vehicle_recommendation && !predictions.vehicle_recommendation.error) {
+                const vehicle = predictions.vehicle_recommendation;
+                const vehicleEmoji = {
+                    'auto': '🛺',
+                    'bike': '🏍️',
+                    'cab': '🚗'
+                };
+                document.getElementById('vehicleRec').textContent = 
+                    vehicleEmoji[vehicle.recommended] + ' ' + vehicle.recommended.toUpperCase();
+                document.getElementById('vehicleConfidence').textContent = 
+                    Math.round(vehicle.confidence * 100) + '% confidence';
+            }
+
+            // Weather impact
+            if (predictions.weather_impact && !predictions.weather_impact.error) {
+                const weather = predictions.weather_impact;
+                document.getElementById('weatherImpact').textContent = weather.score + 'x';
+                document.getElementById('weatherBadge').textContent = weather.impact_level + ' Impact';
+                document.getElementById('weatherBadge').className = 'badge badge-' + weather.impact_level.toLowerCase();
+            }
+
+            document.getElementById('results').classList.add('show');
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = '❌ Error: ' + message;
+            errorDiv.classList.add('show');
+        }
+
+        // Set current hour by default
+        const now = new Date();
+        document.getElementById('hour').value = now.getHours();
+        document.getElementById('day').value = (now.getDay() + 6) % 7; // Convert Sunday=0 to Monday=0
+        document.getElementById('month').value = now.getMonth() + 1;
+    </script>
+</body>
+</html>
