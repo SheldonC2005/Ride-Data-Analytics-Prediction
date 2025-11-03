@@ -473,7 +473,16 @@
             // Price breakdown
             if (predictions.pricing && !predictions.pricing.error) {
                 const pricing = predictions.pricing;
-                document.getElementById('baseFare').textContent = '₹' + pricing.base_fare;
+                const vehicleEmoji = {
+                    'auto': '🛺',
+                    'bike': '🏍️',
+                    'cab': '🚗'
+                };
+                const vehicleIcon = vehicleEmoji[pricing.vehicle_type.toLowerCase()] || '🚗';
+                
+                // Show vehicle-specific base rate with icon
+                document.getElementById('baseFare').textContent = 
+                    `₹${pricing.base_fare} ${vehicleIcon} (₹${pricing.base_rate_per_km}/km)`;
                 document.getElementById('weatherPct').textContent = pricing.weather_premium_pct;
                 document.getElementById('weatherPremium').textContent = '₹' + pricing.weather_premium;
                 document.getElementById('surgeMultiplier').textContent = pricing.surge_multiplier;

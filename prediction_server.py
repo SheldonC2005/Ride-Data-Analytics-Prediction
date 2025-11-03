@@ -113,9 +113,27 @@ def predict():
                 is_weekend=is_weekend,
                 weather_condition=weather
             )
+            demand_value = float(demand_pred['Ensemble'])
+            
+            # Scale up the prediction: model was trained on per-day hourly demand,
+            # but we want to show total hourly demand across all days
+            # Dataset has 366 days (2024 leap year), so multiply by 366
+            scaled_demand = demand_value * 366
+            
+            # Adjusted thresholds based on model predictions
+            # High: Peak rush hours (18:00, 8:00) - typically > 6000 rides
+            # Medium: Moderate hours (7:00, 9:00, 17:00-20:00) - typically 4500-6000 rides
+            # Low: Off-peak hours - typically < 4500 rides
+            if scaled_demand >= 6000:
+                level = 'High'
+            elif scaled_demand >= 4500:
+                level = 'Medium'
+            else:
+                level = 'Low'
+            
             results['demand'] = {
-                'value': float(demand_pred['Ensemble']),
-                'level': 'High' if demand_pred['Ensemble'] > 150 else 'Medium' if demand_pred['Ensemble'] > 80 else 'Low',
+                'value': round(scaled_demand),
+                'level': level,
                 'all_predictions': convert_to_native(demand_pred)
             }
         except Exception as e:
@@ -131,11 +149,19 @@ def predict():
                 vehicle_type=vehicle_type
             )
             
-            # Calculate price breakdown
+            # Calculate price breakdown with vehicle-specific rates
             surge_multiplier = float(pricing_pred['Ensemble'])
-            base_fare = distance * 15  # ₹15 per km base rate
             
-            # Weather premium calculation
+            # Vehicle-specific base rates (₹ per km)
+            base_rates = {
+                'bike': 10.0,   # Cheapest
+                'auto': 15.0,   # Medium
+                'cab': 20.0     # Premium
+            }
+            base_rate_per_km = base_rates.get(vehicle_type.lower(), 15.0)
+            base_fare = distance * base_rate_per_km
+            
+            # Weather premium calculation (base percentage)
             weather_premium_pct = 0
             if weather == 'Rain':
                 weather_premium_pct = 38.3
@@ -144,7 +170,15 @@ def predict():
             elif weather == 'Clouds':
                 weather_premium_pct = 10.0
             
-            weather_premium = base_fare * (weather_premium_pct / 100)
+            # Vehicle-specific weather premium adjustments
+            weather_multipliers = {
+                'bike': 0.7,    # 70% - more exposed to weather
+                'auto': 1.0,    # 100% - standard
+                'cab': 1.2      # 120% - comfort premium
+            }
+            vehicle_weather_multiplier = weather_multipliers.get(vehicle_type.lower(), 1.0)
+            
+            weather_premium = base_fare * (weather_premium_pct / 100) * vehicle_weather_multiplier
             
             # Surge pricing
             surge_amount = base_fare * (surge_multiplier - 1.0)
@@ -153,9 +187,11 @@ def predict():
             total_fare = base_fare + weather_premium + surge_amount
             
             results['pricing'] = {
+                'vehicle_type': vehicle_type,
+                'base_rate_per_km': round(base_rate_per_km, 2),
                 'base_fare': round(base_fare, 2),
                 'weather_premium': round(weather_premium, 2),
-                'weather_premium_pct': weather_premium_pct,
+                'weather_premium_pct': round(weather_premium_pct * vehicle_weather_multiplier, 2),
                 'surge_multiplier': round(surge_multiplier, 2),
                 'surge_amount': round(surge_amount, 2),
                 'total_fare': round(total_fare, 2),
